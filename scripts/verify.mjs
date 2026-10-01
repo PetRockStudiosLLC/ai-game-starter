@@ -19,7 +19,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -54,6 +54,50 @@ const lesson2 = await run('node', ['lessons/02-your-first-call.mjs'])
 check('lesson 2 runs and exits cleanly', lesson2.code === 0, `exit ${lesson2.code}`)
 check('lesson 2 prints an answer with no model', lesson2.out.includes('fallback') || lesson2.out.includes('said:'))
 check('lesson 2 explains how to get a real answer', lesson2.out.includes('Ollama'))
+
+/* ── Lesson 4 runs, and its check catches a wrong answer ────────────────────── */
+
+const lesson4 = await run('node', ['lessons/04-check-yourself.mjs'])
+check('lesson 4 runs and exits cleanly', lesson4.code === 0, `exit ${lesson4.code}`)
+check('lesson 4 shows what code works out', lesson4.out.includes('what code works out'))
+// The lesson is the check, so the check must visibly run with no model installed.
+check(
+  'lesson 4 runs the check with no model',
+  lesson4.out.includes('They match') || lesson4.out.includes('Wrong by'),
+)
+check(
+  'lesson 4 tells you not to ask the model if it was right',
+  lesson4.out.includes('Do not ask the model if it was right'),
+)
+check('lesson 4 points at the example', lesson4.out.includes('examples/word-game/'))
+
+/* ── The README's lesson count is true ─────────────────────────────────────── */
+//
+// WHY THIS CHECK EXISTS
+// The README said "Four short lessons" for as long as there were three. Nothing caught
+// it, because a number in a sentence is not compiled, tested, or rendered. It is the
+// same class of error as a wrong claim on a web page: true when written, quietly false
+// later, and read by someone who has no way to tell.
+
+const lessonFiles = readdirSync(resolve(ROOT, 'lessons')).filter((f) => /^\d\d-/.test(f))
+const readmeText = readFileSync(resolve(ROOT, 'README.md'), 'utf8')
+const WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 }
+const claimed = readmeText.match(/\b(one|two|three|four|five|six|seven|eight) short lessons\b/i)
+
+check('the README claims a lesson count', !!claimed, 'no "N short lessons" found')
+if (claimed) {
+  const n = WORDS[claimed[1].toLowerCase()]
+  check(
+    `the README says ${n} and there are ${lessonFiles.length}`,
+    n === lessonFiles.length,
+    `README says ${claimed[1]}, lessons/ holds ${lessonFiles.length}`,
+  )
+}
+
+// Every lesson file must be linked from the README, so none is orphaned.
+for (const f of lessonFiles) {
+  check(`the README links to ${f}`, readmeText.includes(f))
+}
 
 /* ── The word list is usable ────────────────────────────────────────────────── */
 
@@ -149,6 +193,7 @@ for (const f of [
   'lessons/01-what-a-model-is.md',
   'lessons/02-your-first-call.mjs',
   'lessons/03-the-key-problem.md',
+  'lessons/04-check-yourself.mjs',
   'examples/word-game/server.mjs',
   'examples/word-game/public/index.html',
 ]) {

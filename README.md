@@ -57,6 +57,7 @@ Then read, in this order:
 | [`lessons/01-what-a-model-is.md`](lessons/01-what-a-model-is.md) | The one idea that explains everything else |
 | [`lessons/02-your-first-call.mjs`](lessons/02-your-first-call.mjs) | Your first call to a model, runnable now |
 | [`lessons/03-the-key-problem.md`](lessons/03-the-key-problem.md) | Why a web game cannot hold a key |
+| [`lessons/04-check-yourself.mjs`](lessons/04-check-yourself.mjs) | The check that catches a confident wrong answer |
 | [`examples/word-game/`](examples/word-game/) | A real game that uses a model |
 
 ---

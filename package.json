@@ -8,7 +8,10 @@
   "scripts": {
     "start": "node examples/word-game/server.mjs",
     "first-call": "node lessons/02-your-first-call.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "check-yourself": "node lessons/04-check-yourself.mjs"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }
