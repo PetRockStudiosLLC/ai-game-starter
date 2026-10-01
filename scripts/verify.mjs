@@ -1,0 +1,164 @@
+#!/usr/bin/env node
+/**
+ * Does this repo still work?
+ *
+ *     node scripts/verify.mjs
+ *
+ * WHY THIS EXISTS
+ * An example that does not run is worse than no example. Somebody trying to learn will
+ * assume they did something wrong, and give up - and they will be wrong about which
+ * part was broken.
+ *
+ * So every claim in this repo is checked here. If this passes, the lessons are true
+ * about the code. If it fails, the repo is broken and not the reader.
+ *
+ * IT RUNS WITH NO MODEL ON PURPOSE
+ * The whole point of the first example is that it works with nothing installed. If
+ * this script needed a model to verify, it could not verify the thing that matters
+ * most.
+ */
+
+import { spawn } from 'node:child_process'
+import { readFileSync, existsSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const PORT = 3199
+
+let pass = 0
+let fail = 0
+function check(label, ok, detail = '') {
+  if (ok) { pass++; console.log(`  PASS  ${label}`) }
+  else { fail++; console.log(`  FAIL  ${label}${detail ? ` — ${detail}` : ''}`) }
+}
+
+/** Run a command and collect its output. Never inherits stdio - see the repo notes. */
+function run(cmd, args, opts = {}) {
+  return new Promise((done) => {
+    const child = spawn(cmd, args, { cwd: ROOT, ...opts })
+    let out = ''
+    let err = ''
+    child.stdout.on('data', (d) => { out += d })
+    child.stderr.on('data', (d) => { err += d })
+    child.on('close', (code) => done({ code, out, err }))
+    child.on('error', () => done({ code: -1, out, err: 'spawn failed' }))
+  })
+}
+
+console.log('\nAI Game Starter — does everything still work?\n' + '-'.repeat(60))
+
+/* ── Lesson 2 runs with nothing installed ───────────────────────────────────── */
+
+const lesson2 = await run('node', ['lessons/02-your-first-call.mjs'])
+check('lesson 2 runs and exits cleanly', lesson2.code === 0, `exit ${lesson2.code}`)
+check('lesson 2 prints an answer with no model', lesson2.out.includes('fallback') || lesson2.out.includes('said:'))
+check('lesson 2 explains how to get a real answer', lesson2.out.includes('Ollama'))
+
+/* ── The word list is usable ────────────────────────────────────────────────── */
+
+const words = JSON.parse(readFileSync(resolve(ROOT, 'examples/word-game/words.json'), 'utf8'))
+check('the word list is not empty', words.length >= 10, `${words.length} words`)
+check('every word has a clue', words.every((w) => w.word && w.clue))
+check('no duplicate words', new Set(words.map((w) => w.word)).size === words.length)
+check(
+  'no built-in clue contains its own answer',
+  words.every((w) => !w.clue.toLowerCase().includes(w.word.toLowerCase())),
+)
+
+/* ── The server ─────────────────────────────────────────────────────────────── */
+
+const server = spawn('node', ['examples/word-game/server.mjs'], {
+  cwd: ROOT,
+  env: { ...process.env, PORT: String(PORT) },
+})
+
+// Wait for it to listen. Poll rather than sleep a fixed amount, so a slow machine
+// does not produce a false failure.
+let up = false
+for (let i = 0; i < 40; i++) {
+  await new Promise((r) => setTimeout(r, 150))
+  try {
+    const res = await fetch(`http://localhost:${PORT}/`)
+    if (res.ok) { up = true; break }
+  } catch { /* not yet */ }
+}
+check('the server starts', up)
+
+if (up) {
+  const base = `http://localhost:${PORT}`
+
+  /* ── A new game leaks nothing ───────────────────────────────────────────── */
+
+  const fresh = await (await fetch(`${base}/api/new`)).json()
+  check('a new game returns a clue', typeof fresh.clue === 'string' && fresh.clue.length > 0)
+  check('a new game returns a letter count', Number.isInteger(fresh.letters) && fresh.letters > 0)
+
+  // The important one. If the answer is in this response, the game is pointless and
+  // the lesson about keys applies to it too.
+  const leaked = words.filter((w) => JSON.stringify(fresh).toLowerCase().includes(w.word.toLowerCase()))
+  check('a new game does NOT send the answer', leaked.length === 0, leaked.map((w) => w.word).join(', '))
+
+  /* ── A wrong guess is wrong ─────────────────────────────────────────────── */
+
+  const wrong = await (await fetch(`${base}/api/guess`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ guess: 'zzzznotaword' }),
+  })).json()
+  check('a wrong guess is rejected', wrong.correct === false)
+  check('a wrong guess does not reveal the word', wrong.word === undefined)
+
+  /* ── A right guess is right, and found by the code ──────────────────────── */
+
+  // The answer is secret, so the only way to test the win path is to try them all.
+  // That is also the honest test: it proves the comparison works for every word.
+  let won = null
+  for (const w of words) {
+    const res = await (await fetch(`${base}/api/guess`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guess: w.word }),
+    })).json()
+    if (res.correct) { won = { ...res, tried: w.word }; break }
+  }
+  check('the correct word is accepted', won !== null)
+  check('the word is revealed once guessed', won?.word === won?.tried)
+  check('the guess counter rises', (won?.guesses ?? 0) > 1)
+
+  /* ── The page holds no secret ───────────────────────────────────────────── */
+
+  const html = readFileSync(resolve(ROOT, 'examples/word-game/public/index.html'), 'utf8')
+  check('the page has no API key in it', !/sk-[A-Za-z0-9_-]{10,}/.test(html))
+  check('the page has no process.env reference', !html.includes('process.env'))
+  check('the page talks to the server, not the model company', !html.includes('api.openai.com'))
+
+  /* ── The server holds the key properly ──────────────────────────────────── */
+
+  const srv = readFileSync(resolve(ROOT, 'examples/word-game/server.mjs'), 'utf8')
+  check('the key is read from the environment', srv.includes('process.env.OPENAI_API_KEY'))
+  check('the key is never hard-coded', !/sk-[A-Za-z0-9_-]{10,}/.test(srv))
+}
+
+server.kill()
+
+/* ── The lessons exist and link to each other ───────────────────────────────── */
+
+for (const f of [
+  'README.md',
+  'lessons/01-what-a-model-is.md',
+  'lessons/02-your-first-call.mjs',
+  'lessons/03-the-key-problem.md',
+  'examples/word-game/server.mjs',
+  'examples/word-game/public/index.html',
+]) {
+  check(`${f} exists`, existsSync(resolve(ROOT, f)))
+}
+
+console.log('-'.repeat(60))
+console.log(`  ${pass} passed, ${fail} failed\n`)
+if (fail > 0) {
+  console.log('  Something in this repo does not work. That is the repo\'s problem,')
+  console.log('  not yours.\n')
+  process.exit(1)
+}

@@ -1,0 +1,14 @@
+{
+  "name": "ai-game-starter",
+  "version": "1.0.0",
+  "description": "Everything a 13+ beginner needs to make a small game that uses an AI model.",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "node examples/word-game/server.mjs",
+    "first-call": "node lessons/02-your-first-call.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "engines": { "node": ">=18" }
+}
