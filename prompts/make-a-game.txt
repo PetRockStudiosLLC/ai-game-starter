@@ -1,0 +1,30 @@
+Make me a game as ONE single HTML file.
+
+Hard rules, please follow all of them:
+
+1. ONE file. All the HTML, CSS and JavaScript in it. No separate .js or .css files.
+2. No libraries and no CDN links. No <script src="https://...">, no imports from a
+   website, no frameworks. Plain JavaScript only.
+3. No external assets. No image files, no sound files, no fonts to download.
+   Draw everything with canvas or CSS. If you want sound, make it with the Web Audio
+   API, and it must still work silently if audio is blocked.
+4. It must work by double-clicking the file. No server, no build step, no npm.
+   Do not use ES module imports, because those are blocked on a local file.
+5. Use a <canvas> with requestAnimationFrame. Pick a fixed logical size like 480x640
+   and scale it to fit the window, keeping the aspect ratio. It has to look right on a
+   phone and on a desktop.
+6. Keyboard controls AND touch controls. If it only works with a keyboard, it is
+   unplayable on a phone, which is where most people will open it.
+7. One mechanic only. Do not add levels, menus, settings, saving, or a story. A player
+   should understand it within five seconds of it loading.
+8. Include a title and a one-line instruction on screen, so nobody has to guess.
+
+The game: a simple arcade game where the player moves something left and right at the
+bottom of the screen and catches or avoids falling things. Increase the speed slowly as
+time goes on. Show the score. End the game on a miss, with a way to restart.
+
+When you are finished, tell me:
+  - what you assumed that I did not say
+  - anything you had to leave out, and why
+
+Do not explain the code line by line. I am going to open the file and play it.

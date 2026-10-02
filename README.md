@@ -3,7 +3,7 @@
 Everything you need to make a small game that uses an AI model. Written for someone
 who is 13 or older and can already write a bit of code.
 
-**Not** a course, and **not** a list of tools. Four short lessons and one working
+**Not** a course, and **not** a list of tools. Five short lessons and one working
 example, in the order that saves you the most time.
 
 ---
@@ -31,7 +31,7 @@ This repo covers those four, in that order.
   that to build something, and you can learn it later.
 - **Not a list of the best tools.** Tools change every month. The shape of the code
   does not.
-- **Not finished.** Four lessons and one example is a start, not everything. See
+- **Not finished.** Five lessons and one example is a start, not everything. See
   **What is missing** at the bottom.
 - **Not a promise that any of this is safe to put online.** The example server is for
   learning on your own computer.
@@ -58,6 +58,7 @@ Then read, in this order:
 | [`lessons/02-your-first-call.mjs`](lessons/02-your-first-call.mjs) | Your first call to a model, runnable now |
 | [`lessons/03-the-key-problem.md`](lessons/03-the-key-problem.md) | Why a web game cannot hold a key |
 | [`lessons/04-check-yourself.mjs`](lessons/04-check-yourself.mjs) | The check that catches a confident wrong answer |
+| [`lessons/05-make-a-game.md`](lessons/05-make-a-game.md) | Get a model to write you a whole game, then check it |
 | [`examples/word-game/`](examples/word-game/) | A real game that uses a model |
 
 ---

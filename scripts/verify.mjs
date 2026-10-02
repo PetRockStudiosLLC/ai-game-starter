@@ -19,7 +19,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -98,6 +98,83 @@ if (claimed) {
 for (const f of lessonFiles) {
   check(`the README links to ${f}`, readmeText.includes(f))
 }
+
+/* ── Lesson 5's prompt and checker ─────────────────────────────────────────── */
+//
+// Lesson 5 tells the reader to copy prompts/make-a-game.txt and then run
+// scripts/check-my-game.mjs. Both are things a reader is sent to, so both are things
+// that break quietly when a path changes.
+
+const lesson5 = readFileSync(resolve(ROOT, 'lessons/05-make-a-game.md'), 'utf8')
+check('the prompt file exists', existsSync(resolve(ROOT, 'prompts/make-a-game.txt')))
+check('lesson 5 points at the prompt', lesson5.includes('prompts/make-a-game.txt'))
+check('lesson 5 points at the checker', lesson5.includes('check-my-game.mjs'))
+
+// The prompt has to keep the rules that make the output a single runnable file. Without
+// these it produces a game that needs a server, which is the whole failure it prevents.
+const promptText = readFileSync(resolve(ROOT, 'prompts/make-a-game.txt'), 'utf8')
+for (const rule of ['ONE file', 'No libraries', 'No external assets', 'double-clicking', 'touch controls']) {
+  check(`the prompt still says "${rule}"`, promptText.includes(rule))
+}
+
+/* ── The checker actually works ────────────────────────────────────────────── */
+//
+// A checker that always passes is worse than no checker, so it is run against a file
+// that should pass and a file that should fail, and both answers are asserted.
+
+const fixtureDir = resolve(ROOT, '.verify-fixtures')
+mkdirSync(fixtureDir, { recursive: true })
+
+const GOOD = `<!doctype html><html><head><title>Catch</title></head><body>
+<canvas id="c" width="480" height="640"></canvas>
+<script>
+var x=document.getElementById('c').getContext('2d');
+function loop(){requestAnimationFrame(loop);x.clearRect(0,0,480,640);}
+addEventListener('keydown',function(){});
+addEventListener('pointerdown',function(){});
+loop();
+</script></body></html>`
+
+const BAD = `<!doctype html><html><head><title>x</title>
+<script src="https://cdn.example.com/phaser.js"></script>
+</head><body><img src="./player.png">
+<script type="module">import { Game } from './engine.js'; fetch('https://example.com/a.json');</script>
+</body></html>`
+
+writeFileSync(resolve(fixtureDir, 'good.html'), GOOD)
+writeFileSync(resolve(fixtureDir, 'bad.html'), BAD)
+
+const goodRun = await run('node', ['scripts/check-my-game.mjs', '.verify-fixtures/good.html'])
+check('the checker passes a good file', goodRun.code === 0, `exit ${goodRun.code}`)
+
+const badRun = await run('node', ['scripts/check-my-game.mjs', '.verify-fixtures/bad.html'])
+check('the checker fails a broken file', badRun.code === 1, `exit ${badRun.code}`)
+
+// AND IT HAS TO NAME THE REAL PROBLEMS.
+//
+// This matched the bare label at first, which proved nothing: the checker prints the
+// label whether the check passed or failed, so "no ES module imports" appears in the
+// output either way. Blinding two checks inside the checker still passed this guard.
+//
+// It matches the FAIL line now. That is the difference between the words being on the
+// page and the thing having happened - the same mistake that made the Sock Maze test
+// pass while the game sat on its intro screen.
+for (const [label, needle] of [
+  ['a website script', 'FAIL  no <script src> loading from a website'],
+  ['a module import', 'FAIL  no ES module imports'],
+  ['a missing file', 'FAIL  no <img src> pointing at another file'],
+  ['no canvas', 'FAIL  it uses a canvas'],
+  ['no touch controls', 'FAIL  it listens for touch or pointer'],
+]) {
+  check(`the checker reports ${label}`, badRun.out.includes(needle), `looked for: ${needle}`)
+}
+
+// The good file must PASS those same checks, not merely avoid failing them.
+for (const needle of ['PASS  it uses a canvas', 'PASS  no ES module imports', 'PASS  it listens for touch or pointer']) {
+  check(`a good file passes: ${needle.replace('PASS  ', '')}`, goodRun.out.includes(needle))
+}
+
+rmSync(fixtureDir, { recursive: true, force: true })
 
 /* ── The word list is usable ────────────────────────────────────────────────── */
 
@@ -194,6 +271,9 @@ for (const f of [
   'lessons/02-your-first-call.mjs',
   'lessons/03-the-key-problem.md',
   'lessons/04-check-yourself.mjs',
+  'lessons/05-make-a-game.md',
+  'prompts/make-a-game.txt',
+  'scripts/check-my-game.mjs',
   'examples/word-game/server.mjs',
   'examples/word-game/public/index.html',
 ]) {
